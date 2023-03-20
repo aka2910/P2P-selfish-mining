@@ -4,15 +4,21 @@ class Network:
     """
     Network class that contains that handles the propagtions of transactions and blocks
     """
-    def __init__(self, peers, interarrival, env) -> None:
+    def __init__(self, peers, adv, interarrival, adv_conn, env) -> None:
         """
         peers: list of peers in the network
+        adversary: the adversary peer
         interarrival: interarrival time of transactions
         env: simpy environment
         """
         self.peers = peers
+        self.adv = adv
         self.peer_ids = []
+        self.adv_id = adv.id
         self.interarrival = interarrival
+        
+        # Unnormalized percentage
+        self.adv_conn = adv_conn
 
         for i in range(len(self.peers)):
             self.peer_ids.append(self.peers[i].id)
@@ -39,9 +45,17 @@ class Network:
                 peer.add_neighbor(n)
                 n.add_neighbor(peer)
 
+        adv_neighbors = random.sample(range(len(self.peers)), self.adv_conn*len(self.peers)//100)
+
+        for i in adv_neighbors:
+            self.peers[i].add_neighbor(self.adv)
+            self.adv.add_neighbor(self.peers[i])
+
     def check_graph(self):
         # check if the graph is connected
         # if not, connect the graph
+
+        # Check this implementation again
         
         visited = [False for i in range(len(self.peers))]
 
@@ -71,18 +85,19 @@ class Network:
                     peer.add_neighbor(self.peers[(i+j-1)%num_peers])
                     peer.add_neighbor(self.peers[(i+j+1)%num_peers])
                     peer.add_neighbor(self.peers[(i+j+2)%num_peers])
-                    
 
     def init_properties(self):
         """
         Init the propagation delay, computation delay, and queueing delay for each peer pair
         """
-        self.p = [[0 for i in range(len(self.peers))] for j in range(len(self.peers))]
-        self.c = [[0 for i in range(len(self.peers))] for j in range(len(self.peers))]
-        self.d = [[None for i in range(len(self.peers))] for j in range(len(self.peers))]
+        temp_peers = self.peers + [self.adv]
 
-        for i in range(len(self.peers)):
-            for j in range(len(self.peers)):
+        self.p = [[0 for i in range(len(temp_peers))] for j in range(len(temp_peers))]
+        self.c = [[0 for i in range(len(temp_peers))] for j in range(len(temp_peers))]
+        self.d = [[None for i in range(len(temp_peers))] for j in range(len(temp_peers))]
+
+        for i in range(len(temp_peers)):
+            for j in range(len(temp_peers)):
                 if i == j:
                     self.p[i][j] = 0
                     self.c[i][j] = 0
@@ -99,8 +114,8 @@ class Network:
                         self.p[i][j] = r
 
                     # Init the computation delay
-                    speed_i = self.peers[i].speed
-                    speed_j = self.peers[j].speed
+                    speed_i = temp_peers[i].speed
+                    speed_j = temp_peers[j].speed
 
                     # In Mbps
                     if speed_i == 'fast' and speed_j == 'fast':

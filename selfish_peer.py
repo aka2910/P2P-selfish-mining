@@ -4,8 +4,9 @@ from block import Block
 from tree import Node
 import graphviz
 import os
+from peer import Peer
 
-class Peer:
+class SelfishPeer(Peer):
     """
     A peer(node) in the network
     """
@@ -16,6 +17,7 @@ class Peer:
         env: simpy environment
         config: dictionary containing the configuration of the peer
         """
+        super.__init__()
         self.id = id
         self.neighbors = []
         self.genesis = genesis
@@ -25,6 +27,11 @@ class Peer:
         self.longest_chain = genesis
         self.transactions = set([])
         self.num_gen = 0
+
+        self.lead = 0
+        self.chainhead = genesis
+        self.private_chain = []
+        self.public_length = 0
 
         self.transaction_routing_table = {}
         self.block_routing_table = {}
@@ -181,7 +188,22 @@ class Peer:
                 self.block_routing_table[sender].append(block.blkid)
         else:
             self.block_routing_table[sender] = [block.blkid]
-        yield self.env.process(self.broadcast_block(block))
+        
+        # Here, -1 means 0'
+        # In selfish mining
+        # Check the lead
+        # If the lead is 1, then broadcast the block and change the lead to -1
+        # If the lead is 2, then broadcast all the blocks and change the lead to 0
+        # If the lead > 2, then broadcast one block and change the lead to (lead-1)
+
+        # In stubborn mining
+        # Check the lead
+        # If the lead is 1, then broadcast the block and change the lead to -1
+        # If the lead is 2, then broadcast one block and change the lead to 1
+        # If the lead > 2, then broadcast one block and change the lead to (lead-1)
+
+        # Don't broadcast the block since it is adversary
+        # yield self.env.process(self.broadcast_block(block))
         if to_create:
             yield self.env.process(self.create_block())
             pass
@@ -216,6 +238,14 @@ class Peer:
 
         yield self.env.timeout(Tk)
         
+        # In selfish mining
+        # Check the lead
+        # If the lead is -1, then broadcast the block and change the lead to 0
+
+        # In stubborn mining
+        # Check the lead
+        # If the lead is -1, then don't broadcast the block but change the lead to 1
+
         new_longest_chain = self.longest_chain
         if new_longest_chain.blkid == longest_chain.blkid:
             print("Chain is same")
