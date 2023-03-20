@@ -6,6 +6,8 @@ import graphviz
 import os
 from peer import Peer
 
+selfish = True
+
 class SelfishPeer(Peer):
     """
     A peer(node) in the network
@@ -196,6 +198,17 @@ class SelfishPeer(Peer):
         # If the lead is 2, then broadcast all the blocks and change the lead to 0
         # If the lead > 2, then broadcast one block and change the lead to (lead-1)
 
+        if(selfish):
+            if(self.lead == 1):
+                self.lead = -1
+                yield self.env.process(self.broadcast_block(block))
+            elif(self.lead == 2):
+                self.lead = 1
+                yield self.env.process(self.broadcast_block(block))
+            elif(self.lead > 2):
+                self.lead = self.lead - 1
+                yield self.env.process(self.broadcast_block(block))
+        
         # In stubborn mining
         # Check the lead
         # If the lead is 1, then broadcast the block and change the lead to -1
