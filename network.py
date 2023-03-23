@@ -45,7 +45,9 @@ class Network:
                 peer.add_neighbor(n)
                 n.add_neighbor(peer)
 
-        adv_neighbors = random.sample(range(len(self.peers)), self.adv_conn*len(self.peers)//100)
+        adv_neighbors = random.sample(range(len(self.peers)), (int) (self.adv_conn*len(self.peers)//100))
+
+        print("Neighbors of adversary:", adv_neighbors)
 
         for i in adv_neighbors:
             self.peers[i].add_neighbor(self.adv)
@@ -56,8 +58,8 @@ class Network:
         # if not, connect the graph
 
         # Check this implementation again
-        
-        visited = [False for i in range(len(self.peers))]
+        # Adversary behaves just as the last of the peers
+        visited = [False for i in range(len(self.peers)+1)]
 
         def dfs(node):
             visited[node.id] = True

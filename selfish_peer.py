@@ -1,4 +1,4 @@
-import random 
+import random
 from transaction import Transaction
 from block import Block
 from tree import Node
@@ -20,12 +20,12 @@ class SelfishPeer(Peer):
         env: simpy environment
         config: dictionary containing the configuration of the peer
         """
-        super.__init__()
+        super(SelfishPeer, self).__init__(id, genesis, env, config)
         self.id = id
         self.neighbors = []
         self.genesis = genesis
-        self.speed =  "fast" # slow or fast 
-        self.cpu = "high"   # low or high
+        self.speed =  config["speed"] # slow or fast 
+        self.cpu = config["cpu"]   # low or high
         self.balance = 0 
         self.longest_chain = genesis
         self.transactions = set([])
@@ -150,6 +150,7 @@ class SelfishPeer(Peer):
 
         if block.prevblock.blkid in self.node_block_map.keys():
             # Add the block to the tree
+            print("Previous block is: ", block.prevblock.blkid)
             parent = self.node_block_map[block.prevblock.blkid]
             node = Node(block, self.env.now)
             print(f"{self.id} : Searching for {node.block.blkid} in {parent.children}")
@@ -157,6 +158,7 @@ class SelfishPeer(Peer):
                 print("Adding the node to the tree")
                 print("Edge from ", parent.block.blkid, " to ", node.block.blkid)
                 parent.children.append(node.block.blkid)
+                print("line 161")
                 self.node_block_map[block.prevblock.blkid] = parent
                 print("New children array : ", self.node_block_map[block.prevblock.blkid].children)
                 pass
@@ -204,11 +206,12 @@ class SelfishPeer(Peer):
         if(selfish):
             if(self.lead == 1):
                 self.lead = -1
-                blk = self.private_chain[0]
+                blk = self.private_chain[-1]
                 self.public_length = 1
                 # Also add the block to the tree
                 node = Node(blk, self.env.now)
                 self.node_block_map[blk.blkid] = node
+                print("Previous block is: ", block.prevblock.blkid)
                 parent = self.node_block_map[block.prevblock.blkid]
                 print(f"{self.id} : Searching for {node.block.blkid} in {parent.children}")
                 if node.block.blkid not in parent.children:
@@ -228,14 +231,14 @@ class SelfishPeer(Peer):
                     # Also add the block to the tree
                     node = Node(blk, self.env.now)
                     self.node_block_map[blk.blkid] = node
-                    parent = self.node_block_map[block.prevblock.blkid]
+                    parent = self.node_block_map[blk.prevblock.blkid]
                     print(f"{self.id} : Searching for {node.block.blkid} in {parent.children}")
                     if node.block.blkid not in parent.children:
                         print("Adding the node to the tree")
                         print("Edge from ", parent.block.blkid, " to ", node.block.blkid)
                         parent.children.append(node.block.blkid)
-                        self.node_block_map[block.prevblock.blkid] = parent
-                        print("New children array : ", self.node_block_map[block.prevblock.blkid].children)
+                        self.node_block_map[blk.prevblock.blkid] = parent
+                        print("New children array : ", self.node_block_map[blk.prevblock.blkid].children)
                         pass
                     yield self.env.process(self.broadcast_block(blk))
                 self.private_chain = []
@@ -246,14 +249,14 @@ class SelfishPeer(Peer):
                 # Also add the block to the tree
                 node = Node(blk, self.env.now)
                 self.node_block_map[blk.blkid] = node
-                parent = self.node_block_map[block.prevblock.blkid]
+                parent = self.node_block_map[blk.prevblock.blkid]
                 print(f"{self.id} : Searching for {node.block.blkid} in {parent.children}")
                 if node.block.blkid not in parent.children:
                     print("Adding the node to the tree")
                     print("Edge from ", parent.block.blkid, " to ", node.block.blkid)
                     parent.children.append(node.block.blkid)
-                    self.node_block_map[block.prevblock.blkid] = parent
-                    print("New children array : ", self.node_block_map[block.prevblock.blkid].children)
+                    self.node_block_map[blk.prevblock.blkid] = parent
+                    print("New children array : ", self.node_block_map[blk.prevblock.blkid].children)
                     pass
                 yield self.env.process(self.broadcast_block(blk))
         
@@ -329,7 +332,7 @@ class SelfishPeer(Peer):
         """
         # Create a block
         # while True:
-        print("Creating a block")
+        print(self.id, " : Creating a block")
         self.num_gen += 1
         # yield self.env.timeout(self.id*1000)
         longest_chain_transactions = self.hidden_longest.get_all_transactions()

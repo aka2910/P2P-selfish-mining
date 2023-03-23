@@ -1,3 +1,4 @@
+import os, shutil
 import argparse
 import simpy
 import time
@@ -10,12 +11,12 @@ import random
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="P2P currency simulator")
     parser.add_argument("--n", type=int, default=10, help="Number of peers")
-    parser.add_argument("--z1", type=float, default=0.5, help = "percent of low CPU peers")
+    parser.add_argument("--z1", type=float, default=0.5, help = "fraction of low CPU peers")
     parser.add_argument("--Ttx", type=float, default=0.5, help = "mean interarrival time of transactions")
     parser.add_argument("--time", type=float, default=100, help = "simulation time")
     parser.add_argument("--I", type=float, default=0.5, help = "mean interarrival time of blocks")
     parser.add_argument("--h", type=float, default=0.5, help = "hashing power of the adversary")
-    parser.add_argument("--Z", type=float, default=0.5, help = "percentage of honest nodes connected to the adversary")
+    parser.add_argument("--Z", type=float, default=50, help = "percentage of honest nodes connected to the adversary")
 
     args = parser.parse_args()
 
@@ -70,6 +71,9 @@ if __name__ == "__main__":
     env.process(adv.create_block())
 
     env.run(until=args.time)
+
+    if os.path.exists(os.path.dirname(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}/")):
+        shutil.rmtree(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}/")
 
     # time.sleep(10)
     for peer in peers:
