@@ -4,16 +4,14 @@ from block import Block
 from tree import Node
 import graphviz
 import os
+import json
 from peer import Peer
-
-selfish = True
-stubborn = True
 
 class SelfishPeer(Peer):
     """
     A peer(node) in the network
     """
-    def __init__(self, id, genesis, env, config) -> None:      
+    def __init__(self, id, genesis, env, config, isSelfish) -> None:      
         """
         id: unique id of the peer
         genesis: genesis block
@@ -31,11 +29,14 @@ class SelfishPeer(Peer):
         self.transactions = set([])
         self.num_gen = 0
 
+        self.isSelfish = isSelfish
+
         self.lead = 0
         # Maybe this should also store the time
         # but presently I am adding to the tree with time.now
         self.private_chain = []
         self.public_length = 0
+        self.private_length = 0
         self.hidden_longest = genesis
 
         self.transaction_routing_table = {}
@@ -148,30 +149,42 @@ class SelfishPeer(Peer):
         print("Previous block ID : ", block.prevblock.blkid)
         to_create = False
 
-        if block.prevblock.blkid in self.node_block_map.keys():
+        if block.prevblock.blkid in self.node_block_map.keys() and block.blkid not in self.node_block_map.keys():
             # Add the block to the tree
             print("Previous block is: ", block.prevblock.blkid)
             parent = self.node_block_map[block.prevblock.blkid]
             node = Node(block, self.env.now)
+            print("line 157")
             print(f"{self.id} : Searching for {node.block.blkid} in {parent.children}")
             if node.block.blkid not in parent.children:
                 print("Adding the node to the tree")
                 print("Edge from ", parent.block.blkid, " to ", node.block.blkid)
                 parent.children.append(node.block.blkid)
-                print("line 161")
                 self.node_block_map[block.prevblock.blkid] = parent
+                print("Hash of ", block.prevblock.blkid, hash(parent))
                 print("New children array : ", self.node_block_map[block.prevblock.blkid].children)
                 pass
 
             # Update the node_block_map
             self.node_block_map[block.blkid] = node
     
-
             print("Block height", block.height)
             print("Old longest chain height", self.longest_chain.height)
 
+
+            # Update routing table to not send block back to sender
+
+
+            if sender in self.block_routing_table.keys():
+                if block.blkid not in self.block_routing_table[sender]:
+                    self.block_routing_table[sender].append(block.blkid)
+            else:
+                self.block_routing_table[sender] = [block.blkid]
+
             # Assuming currently that block.height has the correct height
-            if block.height > self.longest_chain.height:
+            if block.height > self.longest_chain.height or (block.height == self.longest_chain.height and block.timestamp > self.longest_chain.timestamp):
+                # if(self.lead == -1):
+                #     self.lead = 0
                 print(f"Peer {self.id} has a new longest chain")
                 self.longest_chain = block
                 self.balance = block.balances[self.id]
@@ -179,148 +192,101 @@ class SelfishPeer(Peer):
                 # New longest chain created
                 # Simulating PoW
                 to_create = True
-
-            elif block.height == self.longest_chain.height and block.timestamp < self.longest_chain.timestamp:
-                print(f"Peer {self.id} has a new longest chain with same height")
-                self.longest_chain = block
-                self.balance = block.balances[self.id]
-
-                # New longest chain created
-                # Simulating PoW
-                to_create = True
-
-        # Update routing table to not send block back to sender
-        if sender in self.block_routing_table.keys():
-            if block.blkid not in self.block_routing_table[sender]:
-                self.block_routing_table[sender].append(block.blkid)
-        else:
-            self.block_routing_table[sender] = [block.blkid]
         
-        # Here, -1 means 0'
-        # In selfish mining
-        # Check the lead
-        # If the lead is 1, then broadcast the block and change the lead to -1
-        # If the lead is 2, then broadcast all the blocks and change the lead to 0
-        # If the lead > 2, then broadcast one block and change the lead to (lead-1)
+                # Here, -1 means 0'
+                # In selfish mining
+                # Check the lead
+                # If the lead is 1, then broadcast the block and change the lead to -1
+                # If the lead is 2, then broadcast all the blocks and change the lead to 0
+                # If the lead > 2, then broadcast one block and change the lead to (lead-1)
 
-        if(selfish):
-            if(self.lead == 1):
-                self.lead = -1
-                blk = self.private_chain[-1]
-                self.public_length = 1
-                # Also add the block to the tree
-                node = Node(blk, self.env.now)
-                self.node_block_map[blk.blkid] = node
-                print("Previous block is: ", block.prevblock.blkid)
-                parent = self.node_block_map[block.prevblock.blkid]
-                print(f"{self.id} : Searching for {node.block.blkid} in {parent.children}")
-                if node.block.blkid not in parent.children:
-                    print("Adding the node to the tree")
-                    print("Edge from ", parent.block.blkid, " to ", node.block.blkid)
-                    parent.children.append(node.block.blkid)
-                    self.node_block_map[block.prevblock.blkid] = parent
-                    print("New children array : ", self.node_block_map[block.prevblock.blkid].children)
-                    pass
-                yield self.env.process(self.broadcast_block(blk))
-            elif(self.lead == 2):
-                self.lead = 0
-                self.longest_chain = self.private_chain[-1]
-                self.public_length = 0
+                if(self.isSelfish):
+                    print("Into selfish")
+                    if(self.lead == 1):
+                        print("Lead is ", self.lead)
+                        self.lead = -1
+                        # blk = self.private_chain[-1]
+                        blk = self.hidden_longest
+                        broadcasted_block = blk
+                        # self.public_length = 1
+                        # Also add the block to the tree
+                        self.private_chain = []
+                        yield self.env.process(self.broadcast_block(broadcasted_block))
+                    elif(self.lead == 2):
+                        print("Lead is ", self.lead)
+                        self.lead = 0
+                        self.longest_chain = self.hidden_longest
+                        # self.public_length = 0
+                        
+                        for blk in self.private_chain:
+                            # Also add the block to the tree
+                            yield self.env.process(self.broadcast_block(blk))
+                        self.private_chain = []
+                    elif(self.lead > 2):
+                        print("Lead is ", self.lead)
+                        self.lead = self.lead - 1
+                        blk = self.private_chain[0]
+                        self.private_chain = self.private_chain[1:]
+                        # self.public_length = self.public_length + 1
+                        # Also add the block to the tree
+                        yield self.env.process(self.broadcast_block(blk))
+                    elif (self.lead == 0):
+                        self.hidden_longest = self.longest_chain
+                        self.private_chain = []
+                        self.lead = 0
+                    elif (self.lead == -1):
+                        self.lead = 0
+                        self.private_chain = []
+                        self.hidden_longest = self.longest_chain
                 
-                for blk in self.private_chain:
-                    # Also add the block to the tree
-                    node = Node(blk, self.env.now)
-                    self.node_block_map[blk.blkid] = node
-                    parent = self.node_block_map[blk.prevblock.blkid]
-                    print(f"{self.id} : Searching for {node.block.blkid} in {parent.children}")
-                    if node.block.blkid not in parent.children:
-                        print("Adding the node to the tree")
-                        print("Edge from ", parent.block.blkid, " to ", node.block.blkid)
-                        parent.children.append(node.block.blkid)
-                        self.node_block_map[blk.prevblock.blkid] = parent
-                        print("New children array : ", self.node_block_map[blk.prevblock.blkid].children)
-                        pass
-                    yield self.env.process(self.broadcast_block(blk))
-                self.private_chain = []
-            elif(self.lead > 2):
-                self.lead = self.lead - 1
-                blk = self.private_chain[0]
-                self.public_length = self.public_length + 1
-                # Also add the block to the tree
-                node = Node(blk, self.env.now)
-                self.node_block_map[blk.blkid] = node
-                parent = self.node_block_map[blk.prevblock.blkid]
-                print(f"{self.id} : Searching for {node.block.blkid} in {parent.children}")
-                if node.block.blkid not in parent.children:
-                    print("Adding the node to the tree")
-                    print("Edge from ", parent.block.blkid, " to ", node.block.blkid)
-                    parent.children.append(node.block.blkid)
-                    self.node_block_map[blk.prevblock.blkid] = parent
-                    print("New children array : ", self.node_block_map[blk.prevblock.blkid].children)
-                    pass
-                yield self.env.process(self.broadcast_block(blk))
-        
-        # In stubborn mining
-        # Check the lead
-        # If the lead is 1, then broadcast the block and change the lead to -1
-        # If the lead is 2, then broadcast one block and change the lead to 1
-        # If the lead > 2, then broadcast one block and change the lead to (lead-1)
+                # In stubborn mining
+                # Check the lead
+                # If the lead is 1, then broadcast the block and change the lead to -1
+                # If the lead is 2, then broadcast one block and change the lead to 1
+                # If the lead > 2, then broadcast one block and change the lead to (lead-1)
 
-        if(stubborn):
-            if(self.lead == 1):
-                self.lead = -1
-                blk = self.private_chain[0]
-                self.public_length = 1
-                # Also, add the block to the tree
-                node = Node(blk, self.env.now)
-                self.node_block_map[blk.blkid] = node
-                parent = self.node_block_map[block.prevblock.blkid]
-                print(f"{self.id} : Searching for {node.block.blkid} in {parent.children}")
-                if node.block.blkid not in parent.children:
-                    print("Adding the node to the tree")
-                    print("Edge from ", parent.block.blkid, " to ", node.block.blkid)
-                    parent.children.append(node.block.blkid)
-                    self.node_block_map[block.prevblock.blkid] = parent
-                    print("New children array : ", self.node_block_map[block.prevblock.blkid].children)
-                    pass
-                yield self.env.process(self.broadcast_block(blk))
-            elif(self.lead == 2):
-                self.lead = 1
-                blk = self.private_chain[0]
-                self.public_length = self.public_length + 1
-                # Also add the block to the tree
-                node = Node(blk, self.env.now)
-                self.node_block_map[blk.blkid] = node
-                parent = self.node_block_map[block.prevblock.blkid]
-                print(f"{self.id} : Searching for {node.block.blkid} in {parent.children}")
-                if node.block.blkid not in parent.children:
-                    print("Adding the node to the tree")
-                    print("Edge from ", parent.block.blkid, " to ", node.block.blkid)
-                    parent.children.append(node.block.blkid)
-                    self.node_block_map[block.prevblock.blkid] = parent
-                    print("New children array : ", self.node_block_map[block.prevblock.blkid].children)
-                    pass
-                yield self.env.process(self.broadcast_block(blk))
-            elif(self.lead > 2):
-                self.lead = self.lead - 1
-                blk = self.private_chain[0]
-                self.public_length = self.public_length + 1
-                # Also add the block to the tree
-                node = Node(blk, self.env.now)
-                self.node_block_map[blk.blkid] = node
-                parent = self.node_block_map[block.prevblock.blkid]
-                print(f"{self.id} : Searching for {node.block.blkid} in {parent.children}")
-                if node.block.blkid not in parent.children:
-                    print("Adding the node to the tree")
-                    print("Edge from ", parent.block.blkid, " to ", node.block.blkid)
-                    parent.children.append(node.block.blkid)
-                    self.node_block_map[block.prevblock.blkid] = parent
-                    print("New children array : ", self.node_block_map[block.prevblock.blkid].children)
-                    pass
-                yield self.env.process(self.broadcast_block(blk))
+                if(not self.isSelfish):
+                    print("Into stubborn")
+                    if(self.lead == 1):
+                        print("Lead is ", self.lead)
+                        self.lead = -1
+                        # blk = self.private_chain[-1]
+                        blk = self.hidden_longest
+                        broadcasted_block = blk
+                        # self.public_length = 1
+                        # Also add the block to the tree
+                        self.private_chain = []
+                        yield self.env.process(self.broadcast_block(broadcasted_block))
+                    # elif(self.lead == 2):
+                    #     print("Lead is ", self.lead)
+                    #     self.lead = 0
+                    #     self.longest_chain = self.hidden_longest
+                    #     # self.public_length = 0
+                        
+                    #     for blk in self.private_chain:
+                    #         # Also add the block to the tree
+                    #         yield self.env.process(self.broadcast_block(blk))
+                    #     self.private_chain = []
+                    elif(self.lead >= 2):
+                        print("Lead is ", self.lead)
+                        self.lead = self.lead - 1
+                        blk = self.private_chain[0]
+                        self.private_chain = self.private_chain[1:]
+                        # self.public_length = self.public_length + 1
+                        # Also add the block to the tree
+                        yield self.env.process(self.broadcast_block(blk))
+                    elif (self.lead == 0):
+                        self.hidden_longest = self.longest_chain
+                        self.private_chain = []
+                        self.lead = 0
+                    elif (self.lead == -1):
+                        self.lead = 0
+                        self.private_chain = []
+                        self.hidden_longest = self.longest_chain
 
         # Don't broadcast the block since it is adversary
         # yield self.env.process(self.broadcast_block(block))
+
         if to_create:
             yield self.env.process(self.create_block())
             pass
@@ -340,8 +306,8 @@ class SelfishPeer(Peer):
         # print(self.transactions, longest_chain_transactions, valid_transactions)
         num_transactions = random.randint(0, min(len(valid_transactions), 999))
         transactions = random.sample(valid_transactions, num_transactions)
-        longest_chain = self.hidden_longest
-        block = Block(longest_chain, self.env.now, set(transactions), self.id)
+        hidden_longest = self.hidden_longest
+        block = Block(hidden_longest, self.env.now, set(transactions), self.id)
 
         # Haven't checked if the block is valid or not
         # So, some transactions might get lost
@@ -358,74 +324,70 @@ class SelfishPeer(Peer):
         # In selfish mining
         # Check the lead
         # If the lead is -1, then broadcast the block and change the lead to 0
-
-        if(selfish):
-            if(self.lead == -1):
-                self.lead = 0
-                self.public_length = 0
-                self.private_chain = []
-                self.longest_chain = block
-                self.hidden_longest = block
-                # Also, add the block to the tree
+        new_longest_chain = self.hidden_longest
+        if(new_longest_chain.blkid == hidden_longest.blkid):
+            if(self.isSelfish):
                 node = Node(block, self.env.now)
                 self.node_block_map[block.blkid] = node
                 parent = self.node_block_map[block.prevblock.blkid]
+                print("line 346")
                 print(f"{self.id} : Searching for {node.block.blkid} in {parent.children}")
                 if node.block.blkid not in parent.children:
                     print("Adding the node to the tree")
                     print("Edge from ", parent.block.blkid, " to ", node.block.blkid)
                     parent.children.append(node.block.blkid)
                     self.node_block_map[block.prevblock.blkid] = parent
+                    print("Hash of ", block.prevblock.blkid, hash(parent))
                     print("New children array : ", self.node_block_map[block.prevblock.blkid].children)
-                    pass
-                yield self.env.process(self.broadcast_block(block))
-            else:
-                self.private_chain.append(block)
-                self.hidden_longest = block
-                self.lead = self.lead + 1
+                    pass 
+                self.node_block_map[block.blkid] = node
+                if(self.lead == -1):
+                    self.lead = 0
+                    self.public_length = 0
+                    self.private_chain = []
+                    self.longest_chain = block
+                    self.hidden_longest = block
+                    self.private_length = 0
+                    # Also, add the block to the tree
+                    
+                    yield self.env.process(self.broadcast_block(block))
+                else:
+                    self.private_chain.append(block)
+                    self.hidden_longest = block
+                    self.lead = self.lead + 1
+                    self.private_length = self.private_length + 1
 
-        # In stubborn mining
-        # Check the lead
-        # If the lead is -1, then don't broadcast the block but change the lead to 1
-
-        if(stubborn):
-            if(self.lead == -1):
-                self.lead = 1
-
-                self.private_chain.append(block)
-                self.hidden_longest = block
-            else:
-                self.private_chain.append(block)
-                self.hidden_longest = block
-                self.lead = self.lead + 1
-
-        # Earlier we used to check if the longest chain has changed
-        # but now we don't require it because we are anyways mining on the hidden chain
-
-        # new_longest_chain = self.hidden_longest
-        # if new_longest_chain.blkid == longest_chain.blkid:
-        #     print("Chain is same")
-        #     print("Peer ID : ", self.id)
-        #     print("Creating block with block ID : ", block.blkid)
-        #     print("Previous block ID : ", block.prevblock.userid)
-        #     # Modify the longest chain and add the block to the tree
-        #     self.longest_chain = block
-        #     node = Node(block, self.env.now)
-        #     parent = self.node_block_map[block.prevblock.blkid]
-        #     print(f"{self.id} : Searching for {node.block.blkid} in {parent.children}")
-        #     if node.block.blkid not in parent.children:
-        #         print("Adding the node to the tree")
-        #         print("Edge from ", parent.block.blkid, " to ", node.block.blkid)
-        #         parent.children.append(node.block.blkid)
-        #         self.node_block_map[block.prevblock.blkid] = parent
-        #         print("New children array : ", self.node_block_map[block.prevblock.blkid].children)
-        #         pass
-
-        #     self.node_block_map[block.blkid] = node
-        #     yield self.env.process(self.broadcast_block(block))
-        #     # else:
-        #         # yield self.env.process(self.create_block())
-        #     # self.print_tree(f"debug_plots/tree_{self.id}.dot")
+            # In stubborn mining
+            # Check the lead
+            # If the lead is -1, then don't broadcast the block but change the lead to 1
+            if(not self.isSelfish):
+                node = Node(block, self.env.now)
+                self.node_block_map[block.blkid] = node
+                parent = self.node_block_map[block.prevblock.blkid]
+                print("line 346")
+                print(f"{self.id} : Searching for {node.block.blkid} in {parent.children}")
+                if node.block.blkid not in parent.children:
+                    print("Adding the node to the tree")
+                    print("Edge from ", parent.block.blkid, " to ", node.block.blkid)
+                    parent.children.append(node.block.blkid)
+                    self.node_block_map[block.prevblock.blkid] = parent
+                    print("Hash of ", block.prevblock.blkid, hash(parent))
+                    print("New children array : ", self.node_block_map[block.prevblock.blkid].children)
+                    pass 
+                self.node_block_map[block.blkid] = node
+                if(self.lead == -1):
+                    self.lead = 1
+                    self.private_chain.append(block)
+                    self.hidden_longest = block
+                    self.private_length = 1
+                    # Also, add the block to the tree
+                    
+                    yield self.env.process(self.broadcast_block(block))
+                else:
+                    self.private_chain.append(block)
+                    self.hidden_longest = block
+                    self.lead = self.lead + 1
+                    self.private_length = self.private_length + 1    
 
 
     def broadcast_block(self, block):
@@ -466,7 +428,7 @@ class SelfishPeer(Peer):
             reverse_mapping[blkid] = id
             #f.node(str(id), str(blkid) + " : " + str(self.node_block_map[blkid].timestamp))
             if self.node_block_map[blkid].block.prevblock is not None:
-                data = str(blkid) + " : " + str(self.node_block_map[blkid].block.userid) + " : " + str(self.node_block_map[blkid].block.prevblock.blkid) + "\n"
+                data = str(blkid) + " : " + str(self.node_block_map[blkid].block.userid) + " : " + str(self.node_block_map[blkid].block.prevblock.blkid) + " : " + str(self.node_block_map[blkid].timestamp) + "\n"
                 for tx in self.node_block_map[blkid].block.transactions:
                     data += str(tx) + "\n"
 
@@ -481,9 +443,17 @@ class SelfishPeer(Peer):
                 print(k, v.block.blkid)
             print(v.children)
 
+        for k, v in self.node_block_map.items():
+            print("Hash of object used is ")
+            print(k, ", ", hash(v))
+
         print()
         print()
         print("Peer ID : ", self.id)
+
+        with open(filename + "rev", "w") as f1:
+            obj = json.dumps(reverse_mapping, indent = 4)
+            f1.write(obj)
 
         visited = set()
         edges = set()

@@ -1,0 +1,2 @@
+selfish = False
+stubborn = True

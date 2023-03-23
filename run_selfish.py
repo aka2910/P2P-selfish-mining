@@ -7,6 +7,7 @@ from selfish_peer import SelfishPeer
 from block import Block
 from network import Network
 import random
+import params
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="P2P currency simulator")
@@ -53,7 +54,7 @@ if __name__ == "__main__":
         genesis.balances = {i: 0 for i in range(n)}
 
     # Generate the adversary
-    adv = SelfishPeer(n, genesis, env, {"speed": "fast", "cpu": "high", "hashing power": args.h})
+    adv = SelfishPeer(n, genesis, env, {"speed": "fast", "cpu": "high", "hashing power": args.h}, params.selfish)
     genesis.balances[n] = 0
 
     # Generate the network
@@ -72,18 +73,39 @@ if __name__ == "__main__":
 
     env.run(until=args.time)
 
-    if os.path.exists(os.path.dirname(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}/")):
-        shutil.rmtree(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}/")
+    if(params.selfish):
+        if os.path.exists(os.path.dirname(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_selfish/")):
+            shutil.rmtree(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_selfish/")
 
-    # time.sleep(10)
-    for peer in peers:
-        longest_chain = peer.longest_chain.height
-        peer.print_tree(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}/tree_{peer.id}_{longest_chain}.dot")
-        peer.save_tree(f"trees_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}/tree_{peer.id}_{longest_chain}.tree")
-    
-    # Printing actions of the adversary
-    longest_chain = adv.longest_chain.height
-    adv.print_tree(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}/tree_{adv.id}_{longest_chain}.dot")
-    adv.save_tree(f"trees_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}/tree_{adv.id}_{longest_chain}.tree")
+        if os.path.exists(os.path.dirname(f"trees_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_selfish/")):
+            shutil.rmtree(f"trees_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_selfish/")
+
+        # time.sleep(10)
+        for peer in peers:
+            longest_chain = peer.longest_chain.height
+            peer.print_tree(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_selfish/tree_{peer.id}_{longest_chain}.dot")
+            peer.save_tree(f"trees_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_selfish/tree_{peer.id}_{longest_chain}.tree")
+        
+        # Printing actions of the adversary
+        longest_chain = adv.longest_chain.height
+        adv.print_tree(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_selfish/tree_{adv.id}_{longest_chain}.dot")
+        adv.save_tree(f"trees_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_selfish/tree_{adv.id}_{longest_chain}.tree")
+    elif(params.stubborn):
+        if os.path.exists(os.path.dirname(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_stubborn/")):
+            shutil.rmtree(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_stubborn/")
+
+        if os.path.exists(os.path.dirname(f"trees_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_stubborn/")):
+            shutil.rmtree(f"trees_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_stubborn/")
+
+        # time.sleep(10)
+        for peer in peers:
+            longest_chain = peer.longest_chain.height
+            peer.print_tree(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_stubborn/tree_{peer.id}_{longest_chain}.dot")
+            peer.save_tree(f"trees_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_stubborn/tree_{peer.id}_{longest_chain}.tree")
+        
+        # Printing actions of the adversary
+        longest_chain = adv.longest_chain.height
+        adv.print_tree(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_stubborn/tree_{adv.id}_{longest_chain}.dot")
+        adv.save_tree(f"trees_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_stubborn/tree_{adv.id}_{longest_chain}.tree")
 
 # python3 run.py --n 50 --z1 0.3 --Ttx 1 --I 1 --time 1000

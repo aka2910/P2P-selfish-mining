@@ -1,3 +1,3 @@
 #!/bin/bash
 
-rm -rf plots_*/* trees_*/*
+rm -rf plots_* trees_*
