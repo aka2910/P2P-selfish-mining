@@ -299,7 +299,6 @@ class SelfishPeer(Peer):
         # Create a block
         # while True:
         print(self.id, " : Creating a block")
-        self.num_gen += 1
         # yield self.env.timeout(self.id*1000)
         longest_chain_transactions = self.hidden_longest.get_all_transactions()
         valid_transactions = self.transactions - longest_chain_transactions
@@ -326,6 +325,7 @@ class SelfishPeer(Peer):
         # If the lead is -1, then broadcast the block and change the lead to 0
         new_longest_chain = self.hidden_longest
         if(new_longest_chain.blkid == hidden_longest.blkid):
+            self.num_gen += 1
             if(self.isSelfish):
                 node = Node(block, self.env.now)
                 self.node_block_map[block.blkid] = node
@@ -487,7 +487,7 @@ class SelfishPeer(Peer):
 
         num_longest = 0
 
-        curr_block = self.longest_chain
+        curr_block = self.hidden_longest
         prev_block = curr_block.prevblock
 
         while prev_block is not None:
@@ -505,9 +505,10 @@ class SelfishPeer(Peer):
             print("CPU speed : ", self.cpu, file=f)
             print("Node speed : ", self.speed, file = f)
             if(self.num_gen != 0):
-                print("Ratio : ", num_longest/self.num_gen, file=f)
+                print("MPU Adv : ", num_longest/self.num_gen, file=f)
             else:
-                print("Ratio : Undefined", file=f)
+                print("MPU Adv: Undefined", file=f)
+            print("Ratio of blocks in main chain : ", num_longest/self.hidden_longest.height, file=f)
 
             reverse_mapping = {}
             for id, blkid in enumerate(self.node_block_map.keys()):

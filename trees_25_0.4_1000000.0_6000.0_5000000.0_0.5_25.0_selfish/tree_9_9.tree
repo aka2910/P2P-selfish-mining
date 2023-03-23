@@ -1,0 +1,60 @@
+Peer ID :  9
+Number of blocks created :  8
+Number of blocks ending in longest chain :  1
+CPU speed :  high
+Node speed :  slow
+Ratio :  0.125
+
+Block Hash :  394688987512640498
+Received at :  0
+
+
+Block Hash :  -3895856003871413994
+Parent Hash :  394688987512640498
+Received at :  48463.2348504987
+
+
+Block Hash :  2378811774224498282
+Parent Hash :  394688987512640498
+Received at :  81524.26880039451
+
+
+Block Hash :  3960028791256176696
+Parent Hash :  2378811774224498282
+Received at :  119746.46662808557
+
+
+Block Hash :  6283106357812811917
+Parent Hash :  3960028791256176696
+Received at :  660309.2332504705
+
+
+Block Hash :  5197856133760222527
+Parent Hash :  6283106357812811917
+Received at :  992818.1709718015
+
+
+Block Hash :  -6011860783516824888
+Parent Hash :  5197856133760222527
+Received at :  1228590.9004797966
+
+
+Block Hash :  -8801872786017411361
+Parent Hash :  -6011860783516824888
+Received at :  2743314.9680696893
+
+
+Block Hash :  -7630584907949158337
+Parent Hash :  -8801872786017411361
+Received at :  2936385.0985342823
+
+
+Block Hash :  -6505705816864830504
+Parent Hash :  -7630584907949158337
+Received at :  3128335.982409901
+
+
+Block Hash :  2186662653406374090
+Parent Hash :  -6505705816864830504
+Received at :  4070570.063205478
+

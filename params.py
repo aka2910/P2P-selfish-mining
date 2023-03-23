@@ -1,2 +1,2 @@
-selfish = False
-stubborn = True
+selfish = True
+stubborn = False

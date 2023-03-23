@@ -73,6 +73,13 @@ if __name__ == "__main__":
 
     env.run(until=args.time)
 
+    with open("MPU.txt", 'w') as f:
+        tot_gen = 0
+        for p in peers:
+            tot_gen += p.num_gen
+        
+        print("Overall MPU : ", peers[0].longest_chain.height/tot_gen, file=f)
+
     if(params.selfish):
         if os.path.exists(os.path.dirname(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_selfish/")):
             shutil.rmtree(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_selfish/")
