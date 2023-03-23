@@ -115,4 +115,4 @@ if __name__ == "__main__":
         adv.print_tree(f"plots_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_stubborn/tree_{adv.id}_{longest_chain}.dot")
         adv.save_tree(f"trees_{args.n}_{args.z1}_{args.Ttx}_{args.I}_{args.time}_{args.h}_{args.Z}_stubborn/tree_{adv.id}_{longest_chain}.tree")
 
-# python3 run.py --n 50 --z1 0.3 --Ttx 1 --I 1 --time 1000
+# python3 run_selfish.py --n 25 --z1 0.4 --Ttx 1000000 --I 6000 --time 5000000 --Z 75 > out.txt
